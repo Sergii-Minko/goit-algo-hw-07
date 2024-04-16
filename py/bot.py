@@ -1,5 +1,11 @@
 from functools import wraps
+from birthdaysoon import get_upcoming_birthdays
+from addressbooklb import Record
 
+def parse_input(user_input):
+    cmd, *args = user_input.split()
+    cmd = cmd.strip().lower()
+    return cmd, *args
 
 # Декоратор для виправлення помилок.
 def input_error(func):
@@ -18,77 +24,83 @@ def input_error(func):
     return inner
 
 
-# Розбиває введене користувачем рядок на команду та аргументи.
-def parse_input(user_input):
-    cmd, *args = user_input.split()
-    cmd = cmd.strip().lower()
-    return cmd, *args
-
-
-# Додає новий контакт до словника контактів.
 @input_error
-def add_contact(args, contacts):
-    if args[0] in contacts:
-        return "Contact already exists. Use 'change' command instead."
-    name, phone = args
-    contacts[name] = phone
-    return "Contact added."
+def add_contact(args, book):
+    name, phone, *_ = args
+    record = book.find(name)
+    message = "Contact updated."
+    if record is None:
+        record = Record(name)
+        book.add_record(record)
+        message = "Contact added."
+    if phone:
+        record.add_phone(phone)
+    return message
 
 
-# Змінює номер телефону існуючого контакту.
 @input_error
-def change_contact(args, contacts):
-    if args[0] not in contacts:
-        return "Contact not found. Use 'add' command instead."
-    name, phone = args
-    contacts[name] = phone
-    return "Contact updated."
+def change_contact(args, book):
+    name, old_phone, new_phone, *_ = args
+    record = book.find(name)
+    if not record:
+        raise ValueError("Contact not found")
+    phone = record.find_phone(old_phone)
+    if phone:
+        record.remove_phone(old_phone)
+        record.add_phone(new_phone)
+        return "Phone number changed."
+    else:
+        return "Phone number not found for this contact."   
 
 
-# Виводить телефонний номер для вказаного імені контакту.
 @input_error
-def show_phone(args, contacts):
-    if args[0] not in contacts:
-        return "Contact not found. Use 'add' command instead."
-    name = args[0]
-    return contacts[name]
+def phone(args, book):
+    name, *_ = args
+    record = book.find(name)
+    if record: 
+        result = [person_phone.value for person_phone in record.phones] 
+        return f'Person phone : \n{"\n".join(result)}'
+    else:
+        return "Contact not found."
 
 
-# Виводить усі контакти.
+def show_all(book):
+    return f'Your contacts : \n{'\n'.join(book.keys())}'
+
+
 @input_error
-def show_all(contacts):
-    if len(contacts) == 0:
-        return "No contacts."
-    return "\n".join(f"{name}: {phone}" for name, phone in contacts.items())
+def add_birthday(args, book):
+    name, birthday, *_ = args
+    record = book.find(name)
+    if record:
+        record.add_birthday(birthday)
+        return f"Birthday added for {name}."
+    else:
+        return f"Contact '{name}' not found."   
 
 
-def main():
-    contacts = {}
-    print("Welcome to the assistant bot!")
-    while True:
-        user_input = input("Enter a command: ")
-        command, *args = parse_input(user_input)
-
-        if command in ["close", "exit"]:
-            print("Good bye!")
-            break
-        elif command == "hello":
-            print("How can I help you?")
-        elif command == "add":
-            print(add_contact(args, contacts))
-        elif command == "change":
-            print(change_contact(args, contacts))
-        elif command == "phone":
-            print(show_phone(args, contacts))
-        elif command == "all":
-            print(show_all(contacts))
-        elif command == "help":
-            print(
-                "Available commands:\nadd <name> <phone>\nchange <name> <phone>\nphone <name>\nall\nexit\n"
-            )
-        else:
-            print("Invalid command.")
+@input_error
+def show_birthday(args, book):
+    name, *_ = args
+    record = book.find(name)
+    birthday = record.birthday
+    if birthday:
+        return f'Birthday of {name} : {birthday.value.strftime("%d.%m.%Y")}'
+    else:
+        return "I don't find a birthday"
 
 
-if __name__ == "__main__":
-    main()
+def birthdays(book):
+    list_birthdays = []
+    soon_birthdays = []
+    for name in book:
+        list_birthdays.append({"name": name, "birthday": book.find(name).birthday.value})
+       
+    soon_birthdays = get_upcoming_birthdays(list_birthdays)
+    if soon_birthdays:
+        print("List of upcoming birthdays: ")
+        return f"{'\n'.join([f'{my_dict['name']} : {my_dict['congratulation_date']}' for my_dict in soon_birthdays])}"
+    else:
+        return "Have no upcoming birthdays" 
+    
+

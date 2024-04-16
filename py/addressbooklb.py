@@ -1,4 +1,5 @@
 from collections import UserDict
+from datetime import datetime
 
 
 class Field:
@@ -7,6 +8,27 @@ class Field:
 
     def __str__(self):
         return str(self.value)
+
+
+class Birthday(Field):
+    def __init__(self, value):
+        try:
+            # Додайте перевірку коректності даних
+            # та перетворіть рядок на об'єкт datetime
+            if len(value.split(".")) != 3:
+                raise ValueError("Invalid date format. Use DD.MM.YYYY")
+            day, month, year = map(int, value.split("."))
+
+            if not (1 <= day <= 31 and 1 <= month <= 12 and 1900 <= year):
+                raise ValueError("Invalid date format. Use DD.MM.YYYY")
+
+            if datetime(year, month, day) > datetime.now():
+                raise ValueError("Invalid date. Birthday cannot be in the future.")
+            self.value = datetime(year, month, day)
+            print(self.value)
+
+        except ValueError:
+            raise ValueError("Invalid date format. Use DD.MM.YYYY")
 
 
 class Name(Field):
@@ -26,6 +48,10 @@ class Record:
     def __init__(self, name):
         self.name = Name(name)
         self.phones = []
+        self.birthday = None
+
+    def add_birthday(self, birthday):
+        self.birthday = Birthday(birthday)
 
     def add_phone(self, phone_number):
         self.phones.append(Phone(phone_number))
@@ -64,36 +90,3 @@ class AddressBook(UserDict):
 
     def delete(self, key):
         self.data.pop(key, None)
-
-
-# Створення нової адресної книги
-book = AddressBook()
-
-# Створення запису для John
-john_record = Record("John")
-john_record.add_phone("1234567890")
-john_record.add_phone("5555555555")
-
-# Додавання запису John до адресної книги
-book.add_record(john_record)
-# Створення та додавання нового запису для Jane
-jane_record = Record("Jane")
-jane_record.add_phone("9876543210")
-book.add_record(jane_record)
-
-# Виведення всіх записів у книзі
-for name, record in book.data.items():
-    print(record)
-
-# Знаходження та редагування телефону для John
-john = book.find("John")
-john.edit_phone("1234567890", "1112223333")
-
-print(john)  # Виведення: Contact name: John, phones: 1112223333; 5555555555
-
-# Пошук конкретного телефону у записі John
-found_phone = john.find_phone("5555555555")
-print(f"{john.name}: {found_phone}")  # Виведення: 5555555555
-
-# Видалення запису Jane
-book.delete("Jane")
